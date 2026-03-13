@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creador de Contenido</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="assets/css/editor-styles.css">
+</head>
+<body>
+    <!-- Modelo de Datos (MVC - Model) -->
+    <div id="app-model" data-model='{
+        "courseTitle": "Administración de Servidores y Virtualización",
+        "institutionName": "Institución Educativa",
+        "institutionLogo": "",
+        "modules": [],
+        "currentSlide": null,
+        "viewMode": "design",
+        "settings": {
+            "primaryColor": "#3498db",
+            "secondaryColor": "#2c3e50",
+            "accentColor": "#27ae60"
+        }
+    }'></div>
+
+    <!-- Vista Principal (MVC - View) -->
+    <div id="app-view" class="editor-container">
+        <!-- Header del Editor -->
+        <header class="editor-header">
+            <div class="header-left">
+                <div class="brand">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Editor SCORM - Rubén Jaramillo</span>
+                </div>
+                <div class="course-info">
+                    <input type="text" id="course-title-input" class="course-title-input" 
+                           value="" 
+                           placeholder="Título del curso">
+                </div>
+            </div>
+            
+            <div class="header-center">
+                <!-- Botón Toggle Design/Developer -->
+                <div class="view-toggle">
+                    <button id="btn-design" class="toggle-btn active" onclick="EditorController.setViewMode('design')">
+                        <i class="fas fa-palette"></i>
+                        <span>Diseño</span>
+                    </button>
+                    <button id="btn-developer" class="toggle-btn" onclick="EditorController.setViewMode('developer')">
+                        <i class="fas fa-code"></i>
+                        <span>Desarrollador</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <button class="action-btn" onclick="EditorController.showSettingsModal()" title="Configuración">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="action-btn" onclick="EditorController.exportPDF()" title="Descargar PDF">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>PDF</span>
+                </button>
+                <button class="action-btn primary" onclick="EditorController.exportSCORMAsZip()" title="Exportar SCORM (ZIP)">
+                    <i class="fas fa-file-archive"></i>
+                    <span>Exportar ZIP</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Barra de Herramientas (solo en modo Diseño) -->
+        <div id="toolbar" class="editor-toolbar">
+            <div class="toolbar-section">
+                <span class="toolbar-label">Agregar:</span>
+                <button class="tool-btn" onclick="EditorController.addSlide()" title="Nueva Diapositiva">
+                    <i class="fas fa-plus-square"></i>
+                    <span>Diapositiva</span>
+                </button>
+                <button class="tool-btn" onclick="EditorController.addModule()" title="Nuevo Módulo">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Módulo</span>
+                </button>
+                <button class="tool-btn danger" onclick="EditorController.deleteCurrentSlide()" title="Eliminar Diapositiva">
+                    <i class="fas fa-trash"></i>
+                    <span>Eliminar</span>
+                </button>
+            </div>
+            
+            <div class="toolbar-section">
+                <span class="toolbar-label">Contenido:</span>
+                <button class="tool-btn" onclick="EditorController.showImageManager()" title="Insertar Imagen">
+                    <i class="fas fa-image"></i>
+                    <span>Imagen</span>
+                </button>
+                <button class="tool-btn" onclick="EditorController.addTextBox()" title="Cuadro de Texto">
+                    <i class="fas fa-align-left"></i>
+                    <span>Texto</span>
+                </button>
+                <button class="tool-btn" onclick="EditorController.addTable()" title="Insertar Tabla">
+                    <i class="fas fa-table"></i>
+                    <span>Tabla</span>
+                </button>
+                <button class="tool-btn" onclick="EditorController.addColumns()" title="Agregar Columnas">
+                    <i class="fas fa-columns"></i>
+                    <span>Columnas</span>
+                </button>
+            </div>
+            
+            <div class="toolbar-section">
+                <span class="toolbar-label">Notas:</span>
+                <button class="tool-btn note-btn advantage" onclick="EditorController.addNoteBox('advantage')" title="Ventaja">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Ventaja</span>
+                </button>
+                <button class="tool-btn note-btn disadvantage" onclick="EditorController.addNoteBox('disadvantage')" title="Desventaja">
+                    <i class="fas fa-minus-circle"></i>
+                    <span>Desventaja</span>
+                </button>
+                <button class="tool-btn note-btn suggestion" onclick="EditorController.addNoteBox('suggestion')" title="Sugerencia">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Sugerencia</span>
+                </button>
+                <button class="tool-btn note-btn info" onclick="EditorController.addNoteBox('info')" title="Información">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Info</span>
+                </button>
+            </div>
+            
+            <div class="toolbar-section">
+                <span class="toolbar-label">Especial:</span>
+                <button class="tool-btn" onclick="EditorController.addPracticalCase()" title="Caso Práctico">
+                    <i class="fas fa-briefcase"></i>
+                    <span>Caso Práctico</span>
+                </button>
+                <button class="tool-btn" onclick="EditorController.addEvaluation()" title="Evaluación">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Evaluación</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Área Principal del Editor -->
+        <div class="editor-main">
+            <!-- Panel Lateral Izquierdo - Estructura del Curso -->
+            <aside class="editor-sidebar">
+                <div class="sidebar-header">
+                    <h3>Estructura del Curso</h3>
+                </div>
+                <div class="sidebar-content" id="course-structure">
+                    <!-- Los módulos se generan dinámicamente -->
+                </div>
+                <div class="sidebar-footer">
+                    <button class="add-module-btn" onclick="EditorController.addModule()">
+                        <i class="fas fa-plus"></i> Agregar Módulo
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Área de Edición Central -->
+            <main class="editor-content">
+                <!-- Vista de Diseño -->
+                <div id="design-view" class="view-panel active">
+                    <div class="slide-editor">
+                        <div class="slide-header-editor">
+                            <input type="text" id="slide-title" class="slide-title-input" 
+                                   placeholder="Título de la diapositiva">
+                            <input type="text" id="slide-subtitle" class="slide-subtitle-input" 
+                                   placeholder="Subtítulo">
+                            <select id="slide-module" class="slide-module-select">
+                                <option value="">Seleccionar módulo...</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Área de Contenido del Editor -->
+                        <div class="content-editor-area" id="content-editor">
+                            <div class="empty-state">
+                                <i class="fas fa-mouse-pointer"></i>
+                                <p>Selecciona una diapositiva para editar su contenido</p>
+                                <p>o crea una nueva diapositiva</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Herramientas contextuales del contenido -->
+                        <div class="content-tools" id="content-tools" style="display: none;">
+                            <button class="tool-btn" onclick="EditorController.insertImage()" title="Insertar Imagen">
+                                <i class="fas fa-image"></i>
+                            </button>
+                            <button class="tool-btn" onclick="EditorController.setImageFloat('left')" title="Flotar Izquierda">
+                                <i class="fas fa-align-left"></i>
+                            </button>
+                            <button class="tool-btn" onclick="EditorController.setImageFloat('right')" title="Flotar Derecha">
+                                <i class="fas fa-align-right"></i>
+                            </button>
+                            <button class="tool-btn" onclick="EditorController.setImageFloat('none')" title="Sin Flotar">
+                                <i class="fas fa-align-center"></i>
+                            </button>
+                            <button class="tool-btn" onclick="EditorController.toggleImageBox()" title="Cuadro">
+                                <i class="fas fa-border-all"></i>
+                            </button>
+                            <button class="tool-btn" onclick="EditorController.toggleImageTransparency()" title="Transparencia">
+                                <i class="fas fa-eye-dropper"></i>
+                            </button>
+                            <button class="tool-btn" onclick="EditorController.deleteSelectedElement()" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista de Desarrollador -->
+                <div id="developer-view" class="view-panel">
+                    <div class="code-editor-header">
+                        <span class="editor-label">
+                            <i class="fas fa-code"></i>
+                            Vista de Código (JSON/SCORM)
+                        </span>
+                        <div class="code-actions">
+                            <button class="action-btn" onclick="EditorController.formatCode()" title="Formatear">
+                                <i class="fas fa-align-left"></i>
+                            </button>
+                            <button class="action-btn" onclick="EditorController.validateCode()" title="Validar">
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="code-editor" class="code-textarea" 
+                              placeholder='{"slides": [], "modules": []}'></textarea>
+                    <div id="code-output" class="code-output"></div>
+                </div>
+            </main>
+
+            <!-- Panel Lateral Derecho - Vista Previa -->
+            <aside class="editor-preview">
+                <div class="preview-header">
+                    <h3>Vista Previa</h3>
+                    <div class="preview-controls">
+                        <button class="preview-btn" onclick="EditorController.togglePreviewSize()" title="Pantalla Completa">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="preview-container">
+                    <div id="preview-frame" class="preview-frame">
+                        <div class="preview-content">
+                            <!-- Vista previa en tiempo real -->
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer del Editor -->
+        <footer class="editor-footer">
+            <div class="footer-left">
+                <span id="status-indicator" class="status-indicator">
+                    <i class="fas fa-circle"></i>
+                    <span>Listo</span>
+                </span>
+                <span class="slide-count">
+                    <span id="total-slides-count">0</span> diapositivas
+                </span>
+            </div>
+            <div class="footer-center">
+                <span class="moodle-indicator">
+                    <i class="fas fa-check-circle"></i>
+                    Optimizado para Moodle
+                </span>
+            </div>
+            <div class="footer-right">
+                <span class="version">v1.0.0</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modales -->
+    
+    <!-- Modal de Configuración -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Configuración del Curso</h3>
+                <button class="close-modal" onclick="EditorController.closeModal('settings-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre de la Institución</label>
+                    <input type="text" id="institution-name" class="form-input" 
+                           placeholder="Nombre de tu institución">
+                </div>
+                <div class="form-group">
+                    <label>Logo de la Institución</label>
+                    <div class="file-upload">
+                        <input type="file" id="institution-logo" accept="image/*">
+                        <div class="file-upload-label">
+                            <i class="fas fa-upload"></i>
+                            <span>Subir logo</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color Primario</label>
+                    <input type="color" id="primary-color" class="color-input" value="#3498db">
+                </div>
+                <div class="form-group">
+                    <label>Color Secundario</label>
+                    <input type="color" id="secondary-color" class="color-input" value="#2c3e50">
+                </div>
+                <div class="form-group">
+                    <label>Color de Acento</label>
+                    <input type="color" id="accent-color" class="color-input" value="#27ae60">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="EditorController.closeModal('settings-modal')">Cancelar</button>
+                <button class="btn-primary" onclick="EditorController.saveSettings()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Imagen -->
+    <div id="image-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Gestor de Imágenes</h3>
+                <button class="close-modal" onclick="EditorController.closeModal('image-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="image-upload-section">
+                    <div class="upload-area" id="image-dropzone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Arrastra imágenes aquí o haz clic para seleccionar</p>
+                        <input type="file" id="image-input" accept="image/*" multiple>
+                    </div>
+                </div>
+                <div class="image-gallery" id="image-gallery">
+                    <!-- Imágenes cargadas -->
+                </div>
+                <div class="image-options">
+                    <h4>Opciones de Imagen</h4>
+                    <div class="option-row">
+                        <label>
+                            <input type="radio" name="image-style" value="floating" checked>
+                            Flotante
+                        </label>
+                        <label>
+                            <input type="radio" name="image-style" value="boxed">
+                            En Cuadro
+                        </label>
+                        <label>
+                            <input type="radio" name="image-style" value="transparent">
+                            Con Transparencia
+                        </label>
+                    </div>
+                    <div class="option-row" id="float-direction" style="display: flex;">
+                        <label>
+                            <input type="radio" name="float-direction" value="left" checked>
+                            Izquierda
+                        </label>
+                        <label>
+                            <input type="radio" name="float-direction" value="right">
+                            Derecha
+                        </label>
+                    </div>
+                    <div class="option-row" id="transparency-slider" style="display: none;">
+                        <label>Nivel de Transparencia:</label>
+                        <input type="range" id="transparency-level" min="0" max="100" value="50">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="EditorController.closeModal('image-modal')">Cancelar</button>
+                <button class="btn-primary" onclick="EditorController.insertSelectedImage()">Insertar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Caso Práctico -->
+    <div id="practical-case-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Agregar Caso Práctico</h3>
+                <button class="close-modal" onclick="EditorController.closeModal('practical-case-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Título del Caso</label>
+                    <input type="text" id="case-title" class="form-input" placeholder="Ej: Configuración de servidor DNS">
+                </div>
+                <div class="form-group">
+                    <label>Descripción del Problema</label>
+                    <textarea id="case-problem" class="form-textarea" rows="4" 
+                              placeholder="Describe el escenario o problema práctico..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Solución Propuesta</label>
+                    <textarea id="case-solution" class="form-textarea" rows="4" 
+                              placeholder="Explica los pasos para resolver el problema..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Recursos Necesarios</label>
+                    <input type="text" id="case-resources" class="form-input" 
+                           placeholder="Lista de recursos separados por comas">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="EditorController.closeModal('practical-case-modal')">Cancelar</button>
+                <button class="btn-primary" onclick="EditorController.savePracticalCase()">Agregar Caso</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Tabla -->
+    <div id="table-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Insertar Tabla</h3>
+                <button class="close-modal" onclick="EditorController.closeModal('table-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Filas</label>
+                        <input type="number" id="table-rows" class="form-input" value="3" min="1" max="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Columnas</label>
+                        <input type="number" id="table-cols" class="form-input" value="3" min="1" max="10">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Estilo</label>
+                    <select id="table-style" class="form-select">
+                        <option value="default">Predeterminado</option>
+                        <option value="striped">Rayas</option>
+                        <option value="bordered">Con Bordes</option>
+                        <option value="minimal">Minimalista</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="EditorController.closeModal('table-modal')">Cancelar</button>
+                <button class="btn-primary" onclick="EditorController.insertTable()">Insertar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Columnas -->
+    <div id="columns-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Agregar Columnas</h3>
+                <button class="close-modal" onclick="EditorController.closeModal('columns-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="column-options">
+                    <button class="column-option" onclick="EditorController.insertColumns(2)">
+                        <div class="column-preview col-2">
+                            <div></div><div></div>
+                        </div>
+                        <span>2 Columnas</span>
+                    </button>
+                    <button class="column-option" onclick="EditorController.insertColumns(3)">
+                        <div class="column-preview col-3">
+                            <div></div><div></div><div></div>
+                        </div>
+                        <span>3 Columnas</span>
+                    </button>
+                    <button class="column-option" onclick="EditorController.insertColumns(4)">
+                        <div class="column-preview col-4">
+                            <div></div><div></div><div></div><div></div>
+                        </div>
+                        <span>4 Columnas</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Evaluación Final -->
+    <div id="evaluation-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Evaluación Final - Preguntas</h3>
+                <button class="close-modal" onclick="EditorController.closeModal('evaluation-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="evaluation-builder">
+                    <div class="question-form">
+                        <div class="form-group">
+                            <label>Pregunta</label>
+                            <textarea id="quiz-question-text" class="form-textarea" rows="2" placeholder="Escribe la pregunta..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Opciones de Respuesta</label>
+                            <div class="option-inputs">
+                                <div class="option-row">
+                                    <input type="radio" name="correct-option" value="0" checked>
+                                    <input type="text" id="quiz-option-0" class="form-input" placeholder="Opción A">
+                                </div>
+                                <div class="option-row">
+                                    <input type="radio" name="correct-option" value="1">
+                                    <input type="text" id="quiz-option-1" class="form-input" placeholder="Opción B">
+                                </div>
+                                <div class="option-row">
+                                    <input type="radio" name="correct-option" value="2">
+                                    <input type="text" id="quiz-option-2" class="form-input" placeholder="Opción C">
+                                </div>
+                                <div class="option-row">
+                                    <input type="radio" name="correct-option" value="3">
+                                    <input type="text" id="quiz-option-3" class="form-input" placeholder="Opción D">
+                                </div>
+                            </div>
+                            <small class="help-text">Selecciona la respuesta correcta</small>
+                        </div>
+                        <button class="btn-primary" onclick="EditorController.addQuizQuestion()">Agregar Pregunta</button>
+                    </div>
+                    <div class="questions-list">
+                        <h4>Preguntas Creadas (<span id="quiz-questions-count">0</span>)</h4>
+                        <div id="quiz-questions-container">
+                            <p class="no-questions">No hay preguntas creadas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="EditorController.closeModal('evaluation-modal')">Cerrar</button>
+                <button class="btn-primary" onclick="EditorController.insertEvaluationToSlide()">Insertar Evaluación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Controlador (MVC - Controller) -->
+    <script src="assets/js/editor-controller.js"></script>
+    <script src="assets/js/editor-model.js"></script>
+    <script src="assets/js/editor-view.js"></script>
+    <script>
+        // Inicializar el editor
+        document.addEventListener('DOMContentLoaded', function() {
+            EditorModel.init();
+            EditorView.init();
+            EditorController.init();
+        });
+    </script>
+</body>
+</html>
